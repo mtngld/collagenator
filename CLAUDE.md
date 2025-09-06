@@ -54,6 +54,29 @@ Note: The virtual environment may need to be recreated if Python paths are broke
 ./create_collages.py /path/to/images
 ```
 
+## Testing
+
+The project includes comprehensive unit and integration tests:
+
+```bash
+# Run all tests
+.venv/bin/python tests/run_tests.py
+
+# Run specific test modules
+.venv/bin/python -m pytest tests/test_create_collages.py -v
+.venv/bin/python -m pytest tests/test_integration.py -v
+
+# Run tests with coverage (if coverage is installed)
+.venv/bin/python -m coverage run tests/run_tests.py
+.venv/bin/python -m coverage report
+```
+
+Test structure:
+- `tests/test_create_collages.py`: Unit tests for core functions
+- `tests/test_integration.py`: End-to-end integration tests
+- `tests/test_images/`: Auto-generated test images for testing
+- `tests/create_test_images.py`: Script to generate test images
+
 ## Key Implementation Details
 
 - **Supported formats**: jpg, jpeg, png, bmp, tiff, webp

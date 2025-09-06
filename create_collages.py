@@ -31,9 +31,7 @@ def main():
     output_folder.mkdir(exist_ok=True)
     
     # Get all image files
-    image_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp'}
-    image_files = [f for f in input_folder.iterdir() 
-                   if f.is_file() and f.suffix.lower() in image_extensions]
+    image_files = get_image_files(input_folder)
     
     if len(image_files) < 4:
         print(f"Error: Need at least 4 images in folder, found {len(image_files)}")
@@ -48,6 +46,8 @@ def main():
 
 def get_image_files(folder):
     """Get all valid image files from folder"""
+    if not folder.exists():
+        return []
     image_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp'}
     return [f for f in folder.iterdir() 
             if f.is_file() and f.suffix.lower() in image_extensions]

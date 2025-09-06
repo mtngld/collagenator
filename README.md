@@ -53,6 +53,25 @@ The script analyzes your images to determine their orientation (portrait vs land
 
 Each collage is sized for A3 printing (4961 × 3508 pixels) with professional quality output.
 
+## Testing
+
+The project includes comprehensive unit and integration tests:
+
+```bash
+# Run all tests
+source .venv/bin/activate && python tests/run_tests.py
+
+# Or use the direct path
+.venv/bin/python tests/run_tests.py
+```
+
+The tests cover:
+- Image loading and processing functions
+- Orientation detection and layout selection
+- Complete collage creation workflow
+- Error handling and edge cases
+- Different image formats and sizes
+
 ## Requirements
 
 - Python 3.6+
