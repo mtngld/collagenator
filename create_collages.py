@@ -13,6 +13,7 @@ def main():
     parser.add_argument('--output', '-o', default='collages', help='Output folder for collages (default: collages)')
     parser.add_argument('--add-filenames', action='store_true', help='Add filename text overlay to each image')
     parser.add_argument('--seed', type=int, help='Random seed for deterministic results')
+    parser.add_argument('--border-width', type=int, default=0, help='Width of white border around each image in pixels (default: 0)')
     
     args = parser.parse_args()
     
@@ -41,7 +42,7 @@ def main():
     
     # Create 12 collages
     for i in range(12):
-        create_collage(image_files, output_folder / f"collage_{i+1:02d}.png", args.add_filenames)
+        create_collage(image_files, output_folder / f"collage_{i+1:02d}.png", args.add_filenames, args.border_width)
         print(f"Created collage {i+1}/12")
 
 def get_image_files(folder):
@@ -52,21 +53,30 @@ def get_image_files(folder):
     return [f for f in folder.iterdir() 
             if f.is_file() and f.suffix.lower() in image_extensions]
 
-def load_and_resize_image(image_path, target_size, add_filename=False):
+def load_and_resize_image(image_path, target_size, add_filename=False, border_width=0):
     """Load image and resize to fill target size with minimal whitespace"""
     try:
         with Image.open(image_path) as img:
             img = img.convert('RGB')
             
-            # Calculate scaling to fill the target size (crop if necessary)
+            # Calculate effective target size (accounting for border)
             target_width, target_height = target_size
+            effective_width = target_width - (2 * border_width)
+            effective_height = target_height - (2 * border_width)
+            
+            # Ensure we have positive dimensions after border
+            if effective_width <= 0 or effective_height <= 0:
+                effective_width = target_width
+                effective_height = target_height
+                border_width = 0
+            
             img_width, img_height = img.size
             
-            # Calculate scale factors for width and height
-            scale_w = target_width / img_width
-            scale_h = target_height / img_height
+            # Calculate scale factors for width and height using effective size
+            scale_w = effective_width / img_width
+            scale_h = effective_height / img_height
             
-            # Use the larger scale factor to ensure the image fills the target size
+            # Use the larger scale factor to ensure the image fills the effective target size
             scale = max(scale_w, scale_h)
             
             # Resize image with the calculated scale
@@ -74,19 +84,21 @@ def load_and_resize_image(image_path, target_size, add_filename=False):
             new_height = int(img_height * scale)
             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
             
-            # Create new image with target size
+            # Create new image with target size (includes border space)
             new_img = Image.new('RGB', target_size, (255, 255, 255))
             
-            # Calculate cropping/centering
-            x = (new_width - target_width) // 2
-            y = (new_height - target_height) // 2
+            # Calculate cropping/centering for the resized image
+            x = (new_width - effective_width) // 2
+            y = (new_height - effective_height) // 2
             
-            if new_width > target_width or new_height > target_height:
-                # Crop the image if it's larger than target
-                img = img.crop((x, y, x + target_width, y + target_height))
+            if new_width > effective_width or new_height > effective_height:
+                # Crop the image to fit the effective size
+                img = img.crop((x, y, x + effective_width, y + effective_height))
             
-            # Paste the image (it should now exactly fill the target size)
-            new_img.paste(img, (0, 0))
+            # Paste the image with border offset
+            paste_x = border_width
+            paste_y = border_width
+            new_img.paste(img, (paste_x, paste_y))
             
             # Add filename overlay if requested
             if add_filename:
@@ -143,7 +155,7 @@ def separate_images_by_orientation(image_files):
     
     return portrait_images, landscape_images
 
-def create_collage(image_files, output_path, add_filenames=False):
+def create_collage(image_files, output_path, add_filenames=False, border_width=0):
     """Create orientation-based collages: 6 portraits or 4 landscapes per page"""
     # Separate images by orientation
     portrait_images, landscape_images = separate_images_by_orientation(image_files)
@@ -199,7 +211,7 @@ def create_collage(image_files, output_path, add_filenames=False):
     
     # Load and place images
     for i, image_path in enumerate(selected_images):
-        img = load_and_resize_image(image_path, (cell_width, cell_height), add_filenames)
+        img = load_and_resize_image(image_path, (cell_width, cell_height), add_filenames, border_width)
         if img is None:
             continue
             
