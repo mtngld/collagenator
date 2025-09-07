@@ -14,6 +14,7 @@ def main():
     parser.add_argument('--add-filenames', action='store_true', help='Add filename text overlay to each image')
     parser.add_argument('--seed', type=int, help='Random seed for deterministic results')
     parser.add_argument('--border-width', type=int, default=0, help='Width of white border around each image in pixels (default: 0)')
+    parser.add_argument('--must-include', nargs='+', help='Specific image files that must be included in collages (each file used exactly once)')
     
     args = parser.parse_args()
     
@@ -40,10 +41,36 @@ def main():
     
     print(f"Found {len(image_files)} images")
     
+    # Process must-include files if specified
+    must_include_files = []
+    if args.must_include:
+        for file_path in args.must_include:
+            path = Path(file_path)
+            # Convert to absolute path if relative
+            if not path.is_absolute():
+                path = input_folder / path
+            
+            if not path.exists():
+                print(f"Error: Must-include file '{file_path}' does not exist")
+                sys.exit(1)
+            
+            if path not in image_files:
+                print(f"Error: Must-include file '{file_path}' is not a valid image in the input folder")
+                sys.exit(1)
+            
+            must_include_files.append(path)
+        
+        print(f"Must include {len(must_include_files)} specific files in collages (each used exactly once)")
+        
+        # Create a copy of must_include_files to track usage
+        remaining_must_include = must_include_files.copy()
+    else:
+        remaining_must_include = []
+    
     # Create 12 collages
     for i in range(12):
-        image_files = create_collage(image_files, output_folder / f"collage_{i+1:02d}.png", args.add_filenames, args.border_width)
-        print(f"Created collage {i+1}/12 (remaining image files {len(image_files)})")
+        image_files, remaining_must_include = create_collage(image_files, output_folder / f"collage_{i+1:02d}.png", args.add_filenames, args.border_width, remaining_must_include)
+        print(f"Created collage {i+1}/12 (remaining image files {len(image_files)}, must-include files left: {len(remaining_must_include)})")
 
 def get_image_files(folder):
     """Get all valid image files from folder"""
@@ -155,10 +182,16 @@ def separate_images_by_orientation(image_files):
     
     return portrait_images, landscape_images
 
-def create_collage(image_files, output_path, add_filenames=False, border_width=0):
+def create_collage(image_files, output_path, add_filenames=False, border_width=0, remaining_must_include=None):
     """Create orientation-based collages: 6 portraits or 4 landscapes per page"""
+    if remaining_must_include is None:
+        remaining_must_include = []
+    
     # Separate images by orientation
     portrait_images, landscape_images = separate_images_by_orientation(image_files)
+    
+    # Separate must-include files by orientation
+    must_include_portraits, must_include_landscapes = separate_images_by_orientation(remaining_must_include)
     
     # Decide whether to create portrait or landscape collage based on available images
     if len(portrait_images) >= 6 and len(landscape_images) >= 4:
@@ -177,7 +210,26 @@ def create_collage(image_files, output_path, add_filenames=False, border_width=0
     
     if use_portrait and len(portrait_images) >= 6:
         # Portrait collage: 6 images in 2x3 grid (2 rows, 3 columns)
-        selected_images = random.sample(portrait_images, 6)
+        selected_images = []
+        used_must_include = []
+        
+        # Start with must-include portraits that fit this orientation
+        available_must_include = [img for img in must_include_portraits if img in portrait_images]
+        slots_to_fill = min(6, len(available_must_include))
+        selected_images.extend(available_must_include[:slots_to_fill])
+        used_must_include.extend(available_must_include[:slots_to_fill])
+        
+        # Fill remaining spots with random portraits (excluding already selected must-includes)
+        remaining_portraits = [img for img in portrait_images if img not in selected_images]
+        remaining_needed = 6 - len(selected_images)
+        
+        if remaining_needed > 0 and len(remaining_portraits) >= remaining_needed:
+            selected_images.extend(random.sample(remaining_portraits, remaining_needed))
+        elif remaining_needed > 0:
+            # If not enough portraits, fill with any remaining images
+            remaining_images = [img for img in image_files if img not in selected_images]
+            selected_images.extend(random.sample(remaining_images, min(remaining_needed, len(remaining_images))))
+        
         grid = (2, 3)  # 2 rows, 3 columns
         
         # Calculate cell dimensions for portrait images
@@ -190,11 +242,36 @@ def create_collage(image_files, output_path, add_filenames=False, border_width=0
         
     else:
         # Landscape collage: 4 images in 2x2 grid
+        selected_images = []
+        used_must_include = []
+        
         if len(landscape_images) >= 4:
-            selected_images = random.sample(landscape_images, 4)
+            # Start with must-include landscapes that fit this orientation
+            available_must_include = [img for img in must_include_landscapes if img in landscape_images]
+            slots_to_fill = min(4, len(available_must_include))
+            selected_images.extend(available_must_include[:slots_to_fill])
+            used_must_include.extend(available_must_include[:slots_to_fill])
+            
+            # Fill remaining spots with random landscapes (excluding already selected must-includes)
+            remaining_landscapes = [img for img in landscape_images if img not in selected_images]
+            remaining_needed = 4 - len(selected_images)
+            
+            if remaining_needed > 0 and len(remaining_landscapes) >= remaining_needed:
+                selected_images.extend(random.sample(remaining_landscapes, remaining_needed))
         else:
-            # Fall back to any available images
-            selected_images = random.sample(image_files, min(4, len(image_files)))
+            # Fall back to any available images, but still prioritize must-includes
+            available_must_include = [img for img in remaining_must_include if img in image_files]
+            slots_to_fill = min(4, len(available_must_include))
+            selected_images.extend(available_must_include[:slots_to_fill])
+            used_must_include.extend(available_must_include[:slots_to_fill])
+            
+            # Fill remaining spots with any remaining images
+            remaining_images = [img for img in image_files if img not in selected_images]
+            remaining_needed = 4 - len(selected_images)
+            
+            if remaining_needed > 0 and len(remaining_images) >= remaining_needed:
+                selected_images.extend(random.sample(remaining_images, min(remaining_needed, len(remaining_images))))
+        
         grid = (2, 2)  # 2 rows, 2 columns
         
         # Calculate larger cell dimensions for landscape images to minimize whitespace
@@ -206,8 +283,9 @@ def create_collage(image_files, output_path, add_filenames=False, border_width=0
         collage_width = a3_width  # 4961 pixels
         collage_height = a3_height  # 3508 pixels
     
-    # Calculate unused images
+    # Calculate unused images and update remaining must-include
     unused_images = [img for img in image_files if img not in selected_images]
+    remaining_must_include_updated = [img for img in remaining_must_include if img not in used_must_include]
     
     # Create collage canvas
     collage = Image.new('RGB', (collage_width, collage_height), (255, 255, 255))
@@ -229,7 +307,7 @@ def create_collage(image_files, output_path, add_filenames=False, border_width=0
     # Save collage
     collage.save(output_path, 'PNG')
 
-    return unused_images 
+    return unused_images, remaining_must_include_updated 
 
 if __name__ == '__main__':
     main()
