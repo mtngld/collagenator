@@ -42,8 +42,8 @@ def main():
     
     # Create 12 collages
     for i in range(12):
-        create_collage(image_files, output_folder / f"collage_{i+1:02d}.png", args.add_filenames, args.border_width)
-        print(f"Created collage {i+1}/12")
+        image_files = create_collage(image_files, output_folder / f"collage_{i+1:02d}.png", args.add_filenames, args.border_width)
+        print(f"Created collage {i+1}/12 (remaining image files {len(image_files)})")
 
 def get_image_files(folder):
     """Get all valid image files from folder"""
@@ -206,6 +206,9 @@ def create_collage(image_files, output_path, add_filenames=False, border_width=0
         collage_width = a3_width  # 4961 pixels
         collage_height = a3_height  # 3508 pixels
     
+    # Calculate unused images
+    unused_images = [img for img in image_files if img not in selected_images]
+    
     # Create collage canvas
     collage = Image.new('RGB', (collage_width, collage_height), (255, 255, 255))
     
@@ -225,6 +228,8 @@ def create_collage(image_files, output_path, add_filenames=False, border_width=0
     
     # Save collage
     collage.save(output_path, 'PNG')
+
+    return unused_images 
 
 if __name__ == '__main__':
     main()
