@@ -8,9 +8,10 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 def main():
-    parser = argparse.ArgumentParser(description='Create 12 collages from images in a folder')
+    parser = argparse.ArgumentParser(description='Create collages from images in a folder')
     parser.add_argument('folder', help='Path to folder containing images')
     parser.add_argument('--output', '-o', default='collages', help='Output folder for collages (default: collages)')
+    parser.add_argument('--count', '-c', type=int, default=12, help='Number of collages to create (default: 12)')
     parser.add_argument('--add-filenames', action='store_true', help='Add filename text overlay to each image')
     parser.add_argument('--seed', type=int, help='Random seed for deterministic results')
     parser.add_argument('--border-width', type=int, default=0, help='Width of white border around each image in pixels (default: 0)')
@@ -67,10 +68,10 @@ def main():
     else:
         remaining_must_include = []
     
-    # Create 12 collages
-    for i in range(12):
+    # Create collages
+    for i in range(args.count):
         image_files, remaining_must_include = create_collage(image_files, output_folder / f"collage_{i+1:02d}.png", args.add_filenames, args.border_width, remaining_must_include)
-        print(f"Created collage {i+1}/12 (remaining image files {len(image_files)}, must-include files left: {len(remaining_must_include)})")
+        print(f"Created collage {i+1}/{args.count} (remaining image files {len(image_files)}, must-include files left: {len(remaining_must_include)})")
 
 def get_image_files(folder):
     """Get all valid image files from folder"""
