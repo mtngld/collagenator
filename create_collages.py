@@ -12,6 +12,7 @@ def main():
     parser.add_argument('folder', help='Path to folder containing images')
     parser.add_argument('--output', '-o', default='collages', help='Output folder for collages (default: collages)')
     parser.add_argument('--count', '-c', type=int, default=12, help='Number of collages to create (default: 12)')
+    parser.add_argument('--format', '-f', choices=['png', 'jpg'], default='png', help='Output format: png or jpg (default: png)')
     parser.add_argument('--add-filenames', action='store_true', help='Add filename text overlay to each image')
     parser.add_argument('--seed', type=int, help='Random seed for deterministic results')
     parser.add_argument('--border-width', type=int, default=0, help='Width of white border around each image in pixels (default: 0)')
@@ -69,8 +70,9 @@ def main():
         remaining_must_include = []
     
     # Create collages
+    file_extension = 'png' if args.format == 'png' else 'jpg'
     for i in range(args.count):
-        image_files, remaining_must_include = create_collage(image_files, output_folder / f"collage_{i+1:02d}.png", args.add_filenames, args.border_width, remaining_must_include)
+        image_files, remaining_must_include = create_collage(image_files, output_folder / f"collage_{i+1:02d}.{file_extension}", args.add_filenames, args.border_width, remaining_must_include, args.format)
         print(f"Created collage {i+1}/{args.count} (remaining image files {len(image_files)}, must-include files left: {len(remaining_must_include)})")
 
 def get_image_files(folder):
@@ -183,7 +185,7 @@ def separate_images_by_orientation(image_files):
     
     return portrait_images, landscape_images
 
-def create_collage(image_files, output_path, add_filenames=False, border_width=0, remaining_must_include=None):
+def create_collage(image_files, output_path, add_filenames=False, border_width=0, remaining_must_include=None, output_format='png'):
     """Create orientation-based collages: 6 portraits or 4 landscapes per page"""
     if remaining_must_include is None:
         remaining_must_include = []
@@ -306,7 +308,10 @@ def create_collage(image_files, output_path, add_filenames=False, border_width=0
         collage.paste(img, (x, y))
     
     # Save collage
-    collage.save(output_path, 'PNG')
+    if output_format.lower() == 'jpg':
+        collage.save(output_path, 'JPEG', quality=95)
+    else:
+        collage.save(output_path, 'PNG')
 
     return unused_images, remaining_must_include_updated 
 
