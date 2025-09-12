@@ -13,6 +13,8 @@ def main():
     parser.add_argument('--output', '-o', default='collages', help='Output folder for collages (default: collages)')
     parser.add_argument('--count', '-c', type=int, default=12, help='Number of collages to create (default: 12)')
     parser.add_argument('--format', '-f', choices=['png', 'jpg'], default='png', help='Output format: png or jpg (default: png)')
+    parser.add_argument('--width', type=int, default=4961, help='Canvas width in pixels (default: 4961, A3 landscape)')
+    parser.add_argument('--height', type=int, default=3508, help='Canvas height in pixels (default: 3508, A3 landscape)')
     parser.add_argument('--add-filenames', action='store_true', help='Add filename text overlay to each image')
     parser.add_argument('--seed', type=int, help='Random seed for deterministic results')
     parser.add_argument('--border-width', type=int, default=0, help='Width of white border around each image in pixels (default: 0)')
@@ -72,7 +74,7 @@ def main():
     # Create collages
     file_extension = 'png' if args.format == 'png' else 'jpg'
     for i in range(args.count):
-        image_files, remaining_must_include = create_collage(image_files, output_folder / f"collage_{i+1:02d}.{file_extension}", args.add_filenames, args.border_width, remaining_must_include, args.format)
+        image_files, remaining_must_include = create_collage(image_files, output_folder / f"collage_{i+1:02d}.{file_extension}", args.add_filenames, args.border_width, remaining_must_include, args.format, args.width, args.height)
         print(f"Created collage {i+1}/{args.count} (remaining image files {len(image_files)}, must-include files left: {len(remaining_must_include)})")
 
 def get_image_files(folder):
@@ -185,7 +187,7 @@ def separate_images_by_orientation(image_files):
     
     return portrait_images, landscape_images
 
-def create_collage(image_files, output_path, add_filenames=False, border_width=0, remaining_must_include=None, output_format='png'):
+def create_collage(image_files, output_path, add_filenames=False, border_width=0, remaining_must_include=None, output_format='png', canvas_width=4961, canvas_height=3508):
     """Create orientation-based collages: 6 portraits or 4 landscapes per page"""
     if remaining_must_include is None:
         remaining_must_include = []
@@ -208,8 +210,8 @@ def create_collage(image_files, output_path, add_filenames=False, border_width=0
         # Not enough images of either orientation, fall back to mixed
         use_portrait = len(portrait_images) >= len(landscape_images)
     
-    # A3 landscape dimensions: 4961 x 3508 pixels
-    a3_width, a3_height = 4961, 3508
+    # Canvas dimensions
+    canvas_width, canvas_height = canvas_width, canvas_height
     
     if use_portrait and len(portrait_images) >= 6:
         # Portrait collage: 6 images in 2x3 grid (2 rows, 3 columns)
@@ -236,8 +238,8 @@ def create_collage(image_files, output_path, add_filenames=False, border_width=0
         grid = (2, 3)  # 2 rows, 3 columns
         
         # Calculate cell dimensions for portrait images
-        cell_width = a3_width // grid[1]  # 1653 pixels wide
-        cell_height = a3_height // grid[0]  # 1754 pixels tall
+        cell_width = canvas_width // grid[1]
+        cell_height = canvas_height // grid[0]
         
         # Use calculated dimensions to fill the canvas
         collage_width = grid[1] * cell_width
@@ -278,13 +280,12 @@ def create_collage(image_files, output_path, add_filenames=False, border_width=0
         grid = (2, 2)  # 2 rows, 2 columns
         
         # Calculate larger cell dimensions for landscape images to minimize whitespace
-        # Use slightly larger cells to reduce gaps between images and borders
-        cell_width = a3_width // grid[1]  # ~2490 pixels wide (slightly larger)
-        cell_height = a3_height // grid[0]  # ~1764 pixels tall (slightly larger)
+        cell_width = canvas_width // grid[1]
+        cell_height = canvas_height // grid[0]
         
-        # Use the exact A3 dimensions for the canvas
-        collage_width = a3_width  # 4961 pixels
-        collage_height = a3_height  # 3508 pixels
+        # Use the exact canvas dimensions
+        collage_width = canvas_width
+        collage_height = canvas_height
     
     # Calculate unused images and update remaining must-include
     unused_images = [img for img in image_files if img not in selected_images]
